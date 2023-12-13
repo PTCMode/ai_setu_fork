@@ -1,12 +1,13 @@
 # 2022.10.14 18:07
 import re
 from hoshino import Service, priv
-from . import db,until
+from . import db, until
 
 
 sv_help = '''
 [帮助绘图]查看帮助
 '''.strip()
+
 
 sv = Service(
     name = '绘图',  #功能名
@@ -18,16 +19,17 @@ sv = Service(
     help_ = sv_help #帮助文本
     )
 
+
 @sv.on_fullmatch(["帮助绘图"])
 async def cwbangzhu(bot, ev):
     msg = await until.helpyou()
     await bot.send(ev, msg, at_sender=True)
 
+
 @sv.on_fullmatch("元素法典目录")
 async def cwbangzhu1(bot, ev):
     msg = await until.helpyou1()
     await bot.send(ev, msg, at_sender=True)
-
 
 
 @sv.on_prefix('绘图')
@@ -36,6 +38,7 @@ async def text2img(bot, ev):
     gid = ev.group_id
     uid = ev.user_id
     tags = ev.message.extract_plain_text().strip()
+
     tag_dict,error_msg,tags_guolv=await until.process_tags(gid,uid,tags) #tags处理过程
     if len(error_msg):
         await bot.send(ev, f"已报错：{error_msg}", at_sender=True)
@@ -54,19 +57,23 @@ async def text2img_sd(bot, ev):
     gid = ev.group_id
     uid = ev.user_id
     tags = ev.message.extract_plain_text().strip()
+
     tag_dict,error_msg,tags_guolv=await until.process_tags(gid,uid,tags) #tags处理过程
     if len(error_msg):
+        until.try_delete_msg(bot, ev, to_del['message_id'])
         await bot.send(ev, f"已报错：{error_msg}", at_sender=True)
+        return
+
     if len(tags_guolv):
         await bot.send(ev, f"已过滤：{tags_guolv}", at_sender=True)
     result_msg,error_msg = await until.get_imgdata_sd(tag_dict,way=0)
     if len(error_msg):
+        until.try_delete_msg(bot, ev, to_del['message_id'])
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
-    try:
-        await bot.delete_msg(message_id=to_del['message_id'])#撤回反馈互动,防止刷屏
-    except:
-        await bot.send(ev, f"请给bot管理员以解锁全部功能")
+        return
+
     #result_msg = f"[CQ:reply,id={ev.message_id}]{result_msg}"     #回复形式发送,喜欢就取消注释,并注释下一行
+    until.try_delete_msg(bot, ev, to_del['message_id'])
     await bot.send(ev, result_msg, at_sender=True)
 
 
@@ -76,24 +83,31 @@ async def img2img(bot, ev):
     gid = ev.group_id
     uid = ev.user_id
     tags = ev.message.extract_plain_text().replace("以图绘图","").strip()
+
     if ev.message[0].type == "reply":
         tmsg = await bot.get_msg(message_id=int(ev.message[0].data['id']))
         ev.message = tmsg["message"]
     b_io,shape,error_msg,size = await until.get_pic_d(ev.message)  #图片获取过程
     if len(error_msg):
+        until.try_delete_msg(bot, ev, to_del['message_id'])
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
+        return
+
     tag_dict,error_msg,tags_guolv=await until.process_tags(gid,uid,tags) #tags处理过程
     if len(error_msg):
+        until.try_delete_msg(bot, ev, to_del['message_id'])
         await bot.send(ev, f"已报错：{error_msg}", at_sender=True)
+        return
+
     if len(tags_guolv):
         await bot.send(ev, f"已过滤：{tags_guolv}", at_sender=True)
     result_msg,error_msg = await until.get_imgdata_sd(tag_dict,way=1,shape=shape,b_io=b_io,size=size) #绘图过程
     if len(error_msg):
+        until.try_delete_msg(bot, ev, to_del['message_id'])
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
-    try:
-        await bot.delete_msg(message_id=to_del['message_id'])#撤回反馈互动,防止刷屏
-    except:
-        await bot.send(ev, f"请给bot管理员以解锁全部功能")
+        return
+
+    until.try_delete_msg(bot, ev, to_del['message_id'])
     await bot.send(ev, result_msg, at_sender=True)
 
 
@@ -105,6 +119,7 @@ async def get_pic_msg(bot, ev):
     msg = await until.get_pic_msg_temp(ev.message)
     await bot.send(ev, msg, at_sender=True)
 
+
 @sv.on_keyword("观察pic")
 async def get_pic_descrip(bot, ev):
     if ev.message[0].type == "reply":
@@ -113,8 +128,10 @@ async def get_pic_descrip(bot, ev):
     b_io,shape,error_msg,size = await until.get_pic_d(ev.message)  #图片获取过程
     if len(error_msg):
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
+        return
     msg = await until.get_pic_descrip_(b_io)
     await bot.send(ev, msg, at_sender=True)
+
 
 @sv.on_keyword("增强pic")
 async def get_pic_strong(bot,ev):
@@ -124,6 +141,7 @@ async def get_pic_strong(bot,ev):
     b_io,shape,error_msg,size = await until.get_pic_d(ev.message)  #图片获取过程
     if len(error_msg):
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
+        return
     msg = await until.get_pic_strong_(b_io)
     await bot.send(ev, msg, at_sender=True)
 
@@ -138,7 +156,9 @@ async def get_xp_list(bot, ev):
     result_msg,error_msg = await until.get_xp_list_(msg,gid,uid)
     if len(error_msg):
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
+        return
     await bot.send(ev, result_msg, at_sender=True)
+
 
 @sv.on_suffix('XP缝合')
 async def get_xp_pic(bot, ev):
@@ -148,14 +168,15 @@ async def get_xp_pic(bot, ev):
     tags,error_msg = await until.get_xp_pic_(msg,gid,uid)
     if len(error_msg):
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
+        return
     tag_dict,error_msg,tags_guolv=await until.process_tags(gid,uid,tags,add_db=0,arrange_tags=0) #tags处理过程
     if len(error_msg):
+        return
         await bot.send(ev, f"已报错：{error_msg}", at_sender=True)
     if len(tags_guolv):
         await bot.send(ev, f"已过滤：{tags_guolv}", at_sender=True)
     result_msg,error_msg = await until.get_imgdata(tag_dict,way=0)
     await bot.send(ev, result_msg, at_sender=True)
-
 
 
 @sv.on_keyword('上传pic')
@@ -166,10 +187,12 @@ async def upload_header(bot, ev):
     b_io,shape,error_msg,size = await until.get_pic_d(ev.message)
     if len(error_msg):
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
+        return
     data = b_io.getvalue()
     pic_hash,pic_dir,error_msg = await until.save_pic(data)
     if len(error_msg):
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
+        return
     try:
         seed=(str(ev.message).split(f"scale:")[0]).split('seed:')[1].strip()
         scale=(str(ev.message).split(f"tags:")[0]).split('scale:')[1].strip()
@@ -192,7 +215,9 @@ async def check_pic(bot, ev):
     result_msg,error_msg = await until.check_pic_(gid,uid,msg)
     if len(error_msg):
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
+        return
     await bot.send(ev, result_msg, at_sender=True)
+
 
 @sv.on_rex((r'^快捷绘图 ([0-9]\d*)(.*)'))
 async def quick_img(bot, ev):
@@ -208,11 +233,13 @@ async def quick_img(bot, ev):
     tag_dict,error_msg,tags_guolv=await until.process_tags(gid,uid,tags) #tags处理过程
     if len(error_msg):
         await bot.send(ev, f"已报错：{error_msg}", at_sender=True)
+        return
     if len(tags_guolv):
         await bot.send(ev, f"已过滤：{tags_guolv}", at_sender=True)
     result_msg,error_msg = await until.get_imgdata(tag_dict)
     if len(error_msg):
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
+        return
     await bot.send(ev, result_msg, at_sender=True)
 
 
@@ -223,6 +250,7 @@ async def img_thumb(bot, ev):
         await bot.finish(ev, '图片ID???')
     msg = db.add_pic_thumb(id)
     await bot.send(ev, msg, at_sender=True)
+
 
 @sv.on_prefix("删除pic")
 async def del_img(bot, ev):

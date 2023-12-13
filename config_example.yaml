@@ -77,7 +77,11 @@ limit_word: True
 ##2. 违禁词表,字典树的方式,如 naked 会过滤掉 "nakedasdasda" 里的 "naked" 剩下 "dasdasda"
 wordlist: ['&r18=1', 'nake', 'vagina', 'penis', 'nsfw', 'genital', 'nude', 'nipple', 'vulv', 'no pant', 'clothes remove', 'rectum', '%']
 
-
+#撤回功能
+##1. 是否开启撤回功能(Bot会撤回一些可能刷屏的提醒)
+delete_massege: True
+##2. 撤回失败时是否进行提醒并索要管理员
+ask_4_admin_priv: False
 
 #鉴赏图片功能
 img2tag: True #是否开启

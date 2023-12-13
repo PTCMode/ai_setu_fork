@@ -64,6 +64,14 @@ for index, word in enumerate(config['wordlist']):
     actree.add_word(word, (index, word))
 actree.make_automaton() #初始化完成，一般来说重启才能重载屏蔽词
 
+
+async def try_delete_msg(bot, ev, message_id):
+    try:
+        if config['delete_massege']:    await bot.delete_msg(message_id = message_id) #撤回反馈互动,防止刷屏
+    except:
+        if config['ask_4_admin_priv']:  await bot.send(ev, f"Bot撤回消息失败, 请赋予Bot管理员")
+
+
 help.救命啊() #初始化帮助
 
 async def helpyou():
@@ -297,21 +305,6 @@ async def get_pic_strong_(b_io):
         return result_msg
     result_msg = f"\n{msg}\n{result_msg}"
     return result_msg
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 #way=0是txt2img,way=1是img2img
