@@ -3,6 +3,7 @@ import uuid
 import hashlib
 import time
 import yaml
+import re
 from os.path import dirname, join
 
 curpath = dirname(__file__) #当前路径
@@ -68,8 +69,6 @@ async def youdaoTranslate(translate_text,way=1):
 
 
 async def baiduTranslate(translate_text:str,way=1) -> str:
-
-    # pre
     if way:
         from_lang = 'zh'  # original language
         to_lang = 'en'  # target language
@@ -104,15 +103,25 @@ async def baiduTranslate(translate_text:str,way=1) -> str:
     return r["trans_result"][0]["dst"]
 
 
-async def tag_trans(tags):
-    for c in tags:
-        if ('\u4e00' <= c <= '\u9fa5'):
-            isChinese = True
-            break
-        else:
-            isChinese = False
-    if(isChinese):
-        tags= (await baiduTranslate(tags)) if transway else (await youdaoTranslate(tags))
+async def tag_trans(tags : str):
+    last_index = 0
+    while last_index < len(tags) - 1:
+        start, end = -1, -1
+        for index in range(last_index, len(tags)):
+            last_index = index
+            if ('\u4e00' <= tags[index] <= '\u9fa5'):
+                if start == -1:
+                    start = index
+                if not (start != -1 and index == len(tags) - 1):
+                    continue
+
+            if start != -1:
+                end = index if (index != len(tags) - 1) else (index + 1)
+                sousce = tags[start:end]
+                transleted = (await baiduTranslate(sousce)) if transway else (await youdaoTranslate(sousce))
+                tags = re.sub(sousce, transleted, tags, 1)
+                last_index = index - len(sousce) + len(transleted)
+                break
     return tags
 
 async def txt_trans(tags,way=1):
