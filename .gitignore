@@ -1,2 +1,5 @@
-request.py
-1.png
+TempImage/
+__pycache__/
+
+config.yaml
+

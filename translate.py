@@ -2,28 +2,18 @@ from hoshino import aiorequests
 import uuid
 import hashlib
 import time
-import yaml
 import re
-from os.path import dirname, join
-
-curpath = dirname(__file__) #当前路径
-config_path = join(curpath,"config.yaml")
-with open(config_path,encoding="utf-8") as f: #初始化法典
-    config = yaml.safe_load(f)#读取配置文件
-
-transway = config['way2trans']
-if transway:
-    url = config['baidu_url']
-    app_id = config['baidu_app_id']
-    app_key = config['baidu_app_key']
-else:
-    url = config['youdao_url']
-    app_id = config['youdao_app_id']
-    app_key = config['youdao_app_key']
+from deepl import Translator as DeepLTranslator
+from until import config
 
 
+async def deepLTranslate(translate_text:str, url = config['deepl_url'], app_key = config['deepl_app_key'], proxy = config['deepl_proxy']) -> str:
+    translator = DeepLTranslator(app_key, server_url = url, proxy = proxy) 
+    result = translator.translate_text(translate_text, target_lang = 'EN-GB')
+    return result.text
 
-async def youdaoTranslate(translate_text,way=1):
+
+async def youdaoTranslate(translate_text, url = config['youdao_url'], app_id = config['youdao_app_id'], app_key = config['youdao_app_key']):
     '''
     :param translate_text: 待翻译的句子
     :param flag: 1:原句子翻译成英文；0:原句子翻译成中文
@@ -55,26 +45,18 @@ async def youdaoTranslate(translate_text,way=1):
         'signType': "v3",  # 签名类型，固定值
         'curtime': time_curtime,  # 秒级时间戳
     }
-    if way:
-        data['from'] = "zh-CHS"  # 译文语种
-        data['to'] = "en"  # 译文语种
-    else:
-        data['from'] = "en"  # 译文语种
-        data['to'] = "zh-CHS"  # 译文语种
+    data['from'] = "zh-CHS"  # 译文语种
+    data['to'] = "en"  # 译文语种
 
-    r = await aiorequests.get(url, params=data)  # 获取返回的json()内容
-    r = await r.json()
-    # print("翻译后的结果：" + r["translation"][0])  # 获取翻译内容
-    return r["translation"][0]
+    result = await aiorequests.get(url, params=data)  # 获取返回的json()内容
+    result = await result.json()
+    # print("翻译后的结果：" + result["translation"][0])  # 获取翻译内容
+    return result["translation"][0]
 
 
-async def baiduTranslate(translate_text:str,way=1) -> str:
-    if way:
-        from_lang = 'zh'  # original language
-        to_lang = 'en'  # target language
-    else:
-        from_lang = 'en'  # original language
-        to_lang = 'zh'  # target language
+async def baiduTranslate(translate_text:str, url = config['baidu_url'], app_id = config['baidu_app_id'], app_key = config['baidu_app_key']) -> str:
+    from_lang = 'zh'  # original language
+    to_lang = 'en'  # target language
     # get text to translate
     input_text = '这里是需要翻译的内容。'
     input_text = translate_text
@@ -97,10 +79,10 @@ async def baiduTranslate(translate_text:str,way=1) -> str:
     }
 
     # Send request
-    r = await (await aiorequests.post(url, params=data, headers=headers)).json()
+    result = await (await aiorequests.post(url, params=data, headers=headers)).json()
 
     # Show response
-    return r["trans_result"][0]["dst"]
+    return result["trans_result"][0]["dst"]
 
 
 async def tag_trans(tags : str):
@@ -118,12 +100,20 @@ async def tag_trans(tags : str):
             if start != -1:
                 end = index if (index != len(tags) - 1) else (index + 1)
                 sousce = tags[start:end]
-                transleted = (await baiduTranslate(sousce)) if transway else (await youdaoTranslate(sousce))
+                transleted = await txt_trans(sousce)
                 tags = re.sub(sousce, transleted, tags, 1)
                 last_index = index - len(sousce) + len(transleted)
                 break
     return tags
 
-async def txt_trans(tags,way=1):
-    tags= (await baiduTranslate(tags,way)) if transway else (await youdaoTranslate(tags,way))
-    return tags
+
+async def txt_trans(text):
+    if config['way2trans'] == 0:
+        text = await youdaoTranslate(text)
+    if config['way2trans'] == 1:
+        text = await baiduTranslate(text)
+    if config['way2trans'] == 2:
+        text = await deepLTranslate(text)
+    else:
+        pass
+    return text

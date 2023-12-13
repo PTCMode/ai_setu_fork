@@ -56,7 +56,8 @@ per_page_num: 32
 #翻译功能
 ##1. 是否开启翻译
 trans: True
-##2. 翻译方式(0为有道,1为百度),api地址,应用id,应用密钥
+
+##2. 翻译方式(0 = 有道, 1 = 百度, 2 = DeepL), api地址, 应用id, 应用密钥, 代理
 way2trans: 0
 youdao_url: "https://openapi.youdao.com/api"
 youdao_app_id: ""
@@ -65,6 +66,10 @@ youdao_app_key: ""
 baidu_url: "http://api.fanyi.baidu.com/api/trans/vip/translate"
 baidu_app_id: ""
 baidu_app_key: ""
+
+deepl_url: "https://api-free.deepl.com"
+deepl_app_key: ""
+deepl_proxy: "127.0.0.1:7890"
 
 #过滤功能
 ##1. 是否开启违禁词过滤
