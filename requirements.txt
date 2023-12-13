@@ -3,3 +3,5 @@ hjson
 Pillow
 pyahocorasick
 PyYAML
+deepl
+
