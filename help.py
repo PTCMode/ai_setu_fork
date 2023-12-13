@@ -1,5 +1,5 @@
 from PIL import Image,ImageDraw,ImageFont
-import os
+import base64
 import math
 from os.path import dirname, join, exists
 
@@ -172,3 +172,21 @@ def 救命啊():
     draw_it(contentlist,f"{curpath}/help_main")
     contentlist = [content5]
     draw_it(contentlist,f"{curpath}/magic")
+
+
+async def helpyou():
+    with open(curpath + '/help_main.jpg', 'rb') as f:
+            imagedata = f.read()
+    imgmes = 'base64://' + base64.b64encode(imagedata).decode()
+    msg = f"[CQ:image,file={imgmes}]"
+    return msg
+
+async def helpyou1():
+    with open(curpath + '/magic.jpg', 'rb') as f:
+            imagedata = f.read()
+    imgmes = 'base64://' + base64.b64encode(imagedata).decode()
+    msg = f"[CQ:image,file={imgmes}]"
+    return msg
+
+
+救命啊() #初始化帮助

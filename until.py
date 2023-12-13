@@ -6,87 +6,15 @@ from hoshino import aiorequests
 from PIL import Image, ImageDraw,ImageFont
 import base64
 import time,calendar
-import os
 import math
-from os.path import dirname, join, exists
-from . import translate,db,easygradio,help
-import ahocorasick
+from . import translate,db,easygradio
 import asyncio
-import yaml
 import aiofiles
 import uuid
 import difflib
 import random
-try:
-    import hjson as json
-except:
-    import json
+from .util import *
 
-
-curpath = dirname(__file__) #当前路径
-save_image_path= join(curpath,'SaveImage')  # 保存图片路径
-
-font_path = join(curpath,"./resources/font/093.ttf")  #字体文件路径
-
-config_path = join(curpath,"config.yaml")
-if not exists(save_image_path):
-    os.mkdir(save_image_path) #创建img保存目录
-
-temp_image_path= join(curpath,'TempImage')  # 保存临时图片路径
-if not exists(temp_image_path):
-    os.mkdir(temp_image_path) #创建临时img保存目录
-
-
-with open(config_path,encoding="utf-8") as f: #初始化配置文件
-    config = yaml.safe_load(f)#读取配置文件
-
-
-with open(join(curpath, './resources/magicbooks/magic.json'),encoding="utf-8") as f: #初始化法典
-    magic_data = json.load(f)
-with open(join(curpath, './resources/magicbooks/magic_pure.json'),encoding="utf-8") as f: #初始化法典(纯净版)
-    magic_data_pure = json.load(f)
-magic_data_title = []
-for i in magic_data:
-    magic_data_title.append(i) #初始化法典目录
-
-with open(join(curpath, './resources/magicbooks/magic_dark.json'),encoding="utf-8") as f: #初始化法典(黑暗版)
-    magic_data_dark = json.load(f)
-magic_data_dark_title = []
-for i in magic_data_dark:
-    magic_data_dark_title.append(i) #初始化黑暗法典目录
-
-
-ip_token_list = [(i, j) for i in config['api_ip'] for j in config['token'] if i != j] #初始化ip和token的列表(轮询池)
-
-
-actree = ahocorasick.Automaton()#初始化AC自动机
-for index, word in enumerate(config['wordlist']):
-    actree.add_word(word, (index, word))
-actree.make_automaton() #初始化完成，一般来说重启才能重载屏蔽词
-
-
-async def try_delete_msg(bot, ev, message_id):
-    try:
-        if config['delete_massege']:    await bot.delete_msg(message_id = message_id) #撤回反馈互动,防止刷屏
-    except:
-        if config['ask_4_admin_priv']:  await bot.send(ev, f"Bot撤回消息失败, 请赋予Bot管理员")
-
-
-help.救命啊() #初始化帮助
-
-async def helpyou():
-    with open(curpath + '/help_main.jpg', 'rb') as f:
-            imagedata = f.read()
-    imgmes = 'base64://' + base64.b64encode(imagedata).decode()
-    msg = f"[CQ:image,file={imgmes}]"
-    return msg
-
-async def helpyou1():
-    with open(curpath + '/magic.jpg', 'rb') as f:
-            imagedata = f.read()
-    imgmes = 'base64://' + base64.b64encode(imagedata).decode()
-    msg = f"[CQ:image,file={imgmes}]"
-    return msg
 
 async def get_models():
     url = f"{config['sd_api_ip']}/sdapi/v1/sd-models"
@@ -123,25 +51,37 @@ async def change_model(msg):
         return f"模型切换失败"
 
 
-
-async def guolv(sent):#过滤屏蔽词
-    sent_cp = sent.lower() #转为小写
+async def guolv(text):#过滤屏蔽词
+    text_lc = text.lower() #转为小写
     tags_guolv = ""
-    for i in actree.iter(sent):
-        sent_cp = sent_cp.replace(i[1][1], "")
+    for i in actree.iter(text_lc):
+        text = re.sub(i[1][1], "", text, flags = re.IGNORECASE)
         tags_guolv = f"{tags_guolv} {str(i[1][1])} "
-    return sent_cp,tags_guolv
+    return text,tags_guolv
 
-async def process_tags(gid,uid,tags,add_db=config['add_db'],trans=config['trans'],limit_word=config['limit_word'],arrange_tags=config['arrange_tags']):
+async def guolv_r18(text):#过滤屏蔽词
+    text_lc = text.lower() #转为小写
+    tags_guolv = ""
+    for i in actree_r18.iter(text_lc):
+        text = re.sub(i[1][1], "", text, flags = re.IGNORECASE)
+        tags_guolv = f"{tags_guolv} {str(i[1][1])} "
+    return text,tags_guolv
+
+async def process_tags(gid, uid, tags, add_db = config['add_db'], trans = config['trans'],\
+                       limit_word = config['limit_word'], arrange_tags = config['arrange_tags'],\
+                       sfw = True, nsfw = False):
     error_msg ="" #报错信息
     tags_guolv="" #过滤词信息
     #初始化
     try:
         tags = f"tags={tags.strip()}" #去除首尾空格换行#头部加上tags=
         taglist = re.split('&',tags) #分割
-        taglist[0] = taglist[0].strip().lower() #转小写方便处理
+        # taglist[0] = taglist[0].strip().lower() #转小写方便处理
+        taglist[0] = taglist[0].strip() # FIXME: 直接转小写会把Lora也一起转换, 造成识别不出Lora的现象
         id = ["tags=","ntags=","seed=","scale=","shape=","strength=","r18=","steps=","sampler=","restore_faces=","tiling=","bigger=","w=","h="]
-        tag_dict = {i: ("" if not [idx for idx in taglist if idx.startswith(i)] else [idx for idx in taglist if idx.startswith(i)][-1]).replace(i, '', 1)  for i in id }#取出tags+ntags+seed+scale+shape,每种只取列表最后一个,并删掉id
+        #取出tags+ntags+seed+scale+shape,每种只取列表最后一个,并删掉id
+        tag_dict = {i: ("" if not [idx for idx in taglist if idx.startswith(i)] \
+                        else [idx for idx in taglist if idx.startswith(i)][-1]).replace(i, '', 1)  for i in id }
     except Exception as e:
         error_msg = f"tags初始化失败{e}"
         return tags,error_msg,tags_guolv
@@ -162,7 +102,13 @@ async def process_tags(gid,uid,tags,add_db=config['add_db'],trans=config['trans'
     #过滤tags,只过滤正面tags
     if limit_word:
         try:
-            tag_dict["tags="],tags_guolv = await guolv(tag_dict["tags="].strip().lower())#过滤,转小写防止翻译出来大写
+            tags_guolv_1, tags_guolv_2 = '', ''
+            text = tag_dict["tags="].strip()
+            if not nsfw:
+                text,tags_guolv_1 = await guolv_r18(text) #过滤, 转小写防止翻译出来大写
+            text,tags_guolv_2 = await guolv(text)
+            tag_dict["tags="] = text
+            tags_guolv = f'{tags_guolv_1},{tags_guolv_2}' if tags_guolv_1 and tags_guolv_2 else f'{tags_guolv_1}{tags_guolv_2}'
         except Exception as e:
             error_msg += "过滤失败"
 
@@ -184,8 +130,12 @@ async def process_tags(gid,uid,tags,add_db=config['add_db'],trans=config['trans'
         tag_dict["tags="] = config['tags_moren']#默认正面tags
     if not tag_dict["ntags="]:
         tag_dict["ntags="] = config['ntags_moren']#默认负面tags
-    if config["ntags_safe"]:
-        tag_dict["ntags="] = (f"{config['ntags_safe']},{tag_dict['ntags=']}")#默认安全负面tags
+    if sfw and not nsfw:
+        tag_dict["tags="] = (f"{config['tags_sfw']},{tag_dict['tags=']}")
+        tag_dict["ntags="] = (f"{config['ntags_sfw']},{tag_dict['ntags=']}")
+    elif nsfw:
+        tag_dict["tags="] = (f"{config['tags_nsfw']},{tag_dict['tags=']}")
+        tag_dict["ntags="] = (f"{config['ntags_nsfw']},{tag_dict['ntags=']}")
     if tag_dict["shape="] and tag_dict["shape="] in ["portrait","landscape","square"]:
         tag_dict["shape="] = tag_dict["shape="].capitalize()
     else:
@@ -315,11 +265,11 @@ async def get_imgdata_sd(tagdict:dict,way=1,shape="Portrait",b_io=None,size = No
         tagdict["seed="] = -1
     if not way:
         shape = tagdict["shape="]
-        if shape == "Portrait":
+        if shape.lower() == "portrait":
             width,height = 512,768
-        elif shape == "Landscape":
+        elif shape.lower() == "landscape":
             width,height = 768,512
-        elif shape == "Square":
+        elif shape.lower() == "square":
             width,height = 640,640
         if tagdict["bigger="]:
             width,height = width+128,height+128
@@ -338,17 +288,21 @@ async def get_imgdata_sd(tagdict:dict,way=1,shape="Portrait",b_io=None,size = No
             tagdict["scale="] = config['txt2img_scale_moren']#默认scale
         url = f"{config['sd_api_ip']}/sdapi/v1/txt2img"
         json_data = {
-          "enable_hr": False,
-          "prompt": tagdict["tags="],
-          "seed": tagdict["seed="],
-          "steps": tagdict["steps="],
-          "cfg_scale": tagdict["scale="],
-          "width": width,
-          "height": height,
-          "最大像素restore_faces": tagdict["restore_faces="],
-          "tiling": tagdict["tiling="],
-          "negative_prompt": tagdict["ntags="],
-          "sampler_index": tagdict["sampler="]
+            "prompt": tagdict["tags="],
+            "seed": tagdict["seed="],
+            "steps": tagdict["steps="],
+            "cfg_scale": tagdict["scale="],
+            "width": width,
+            "height": height,
+            "restore_faces": tagdict["restore_faces="],
+            "tiling": tagdict["tiling="],
+            "negative_prompt": tagdict["ntags="],
+            "sampler_index": tagdict["sampler="],
+            "enable_hr": config['enable_hr'],
+            "hr_scale": config['hr_scale'],
+            "hr_upscaler": config['hr_upscaler'],
+            "hr_second_pass_steps": config['hr_second_pass_steps'],
+            "denoising_strength": config['hr_denoising_strength']
         }
 
     if way :
@@ -381,7 +335,12 @@ async def get_imgdata_sd(tagdict:dict,way=1,shape="Portrait",b_io=None,size = No
             "restore_faces": tagdict["restore_faces="],
             "tiling": tagdict["tiling="],
             "negative_prompt": tagdict["ntags="],
-            "sampler_index": tagdict["sampler="]
+            "sampler_index": tagdict["sampler="],
+            "enable_hr": config['enable_hr'],
+            "hr_scale": config['hr_scale'],
+            "hr_upscaler": config['hr_upscaler'],
+            "hr_second_pass_steps": config['hr_second_pass_steps'],
+            "denoising_strength": config['hr_denoising_strength']
         }
     response = await aiorequests.post(url,json=json_data,headers = {"Content-Type": "application/json"})
     imgdata = await response.json()#报错反馈,待完成
@@ -494,6 +453,7 @@ async def get_pic_d(msg):
     try:
         image_url = re.search(r"\[CQ:image,file=(.*)url=(.*?)[,\];]", str(msg))
         url = image_url.group(2)
+        url = re.sub('https:', 'http:', url)
     except Exception as e:
         error_msg = "你的图片呢？"
         return None,None,error_msg,None

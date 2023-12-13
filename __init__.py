@@ -1,7 +1,7 @@
 # 2022.10.14 18:07
 import re
 from hoshino import Service, priv
-from . import db, until
+from . import db, until, help
 
 
 sv_help = '''
@@ -22,18 +22,21 @@ sv = Service(
 
 @sv.on_fullmatch(["帮助绘图"])
 async def cwbangzhu(bot, ev):
-    msg = await until.helpyou()
+    msg = await help.helpyou()
     await bot.send(ev, msg, at_sender=True)
 
 
 @sv.on_fullmatch("元素法典目录")
 async def cwbangzhu1(bot, ev):
-    msg = await until.helpyou1()
+    msg = await help.helpyou1()
     await bot.send(ev, msg, at_sender=True)
 
 
 @sv.on_prefix('绘图')
 async def text2img(bot, ev):
+    if (until.config['only_sd']):
+        await text2img_sd(bot, ev)
+        return
     #await bot.send(ev, f"收到指令,处理中~", at_sender=True) #触发回馈示例,喜欢就取消注释
     gid = ev.group_id
     uid = ev.user_id
@@ -47,7 +50,9 @@ async def text2img(bot, ev):
     result_msg,error_msg = await until.get_imgdata(tag_dict,way=0)
     if len(error_msg):
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
-    #result_msg = f"[CQ:reply,id={ev.message_id}]{result_msg}"     #回复形式发送,喜欢就取消注释,并注释下一行
+    #回复形式发送
+    if until.config['use_reply']:
+        result_msg = f"[CQ:reply,id={ev.message_id}]{result_msg}"
     await bot.send(ev, result_msg, at_sender=True)
 
 
@@ -57,23 +62,28 @@ async def text2img_sd(bot, ev):
     gid = ev.group_id
     uid = ev.user_id
     tags = ev.message.extract_plain_text().strip()
+    sfw_flag = True
+    if until.check_nsfw_conf(gid):
+        sfw_flag = False
 
-    tag_dict,error_msg,tags_guolv=await until.process_tags(gid,uid,tags) #tags处理过程
+    tag_dict,error_msg,tags_guolv=await until.process_tags(gid,uid,tags,sfw=sfw_flag) #tags处理过程
     if len(error_msg):
-        until.try_delete_msg(bot, ev, to_del['message_id'])
+        await until.try_delete_msg(bot, ev, to_del['message_id'])
         await bot.send(ev, f"已报错：{error_msg}", at_sender=True)
         return
-
     if len(tags_guolv):
         await bot.send(ev, f"已过滤：{tags_guolv}", at_sender=True)
+
     result_msg,error_msg = await until.get_imgdata_sd(tag_dict,way=0)
     if len(error_msg):
-        until.try_delete_msg(bot, ev, to_del['message_id'])
+        await until.try_delete_msg(bot, ev, to_del['message_id'])
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
         return
 
-    #result_msg = f"[CQ:reply,id={ev.message_id}]{result_msg}"     #回复形式发送,喜欢就取消注释,并注释下一行
-    until.try_delete_msg(bot, ev, to_del['message_id'])
+    #回复形式发送
+    if until.config['use_reply']:
+        result_msg = f"[CQ:reply,id={ev.message_id}][CQ:at,qq={uid}]{result_msg}"
+    await until.try_delete_msg(bot, ev, to_del['message_id'])
     await bot.send(ev, result_msg, at_sender=True)
 
 
@@ -83,31 +93,37 @@ async def img2img(bot, ev):
     gid = ev.group_id
     uid = ev.user_id
     tags = ev.message.extract_plain_text().replace("以图绘图","").strip()
+    sfw_flag = True
+    if until.check_nsfw_conf(gid):
+        sfw_flag = False
 
     if ev.message[0].type == "reply":
         tmsg = await bot.get_msg(message_id=int(ev.message[0].data['id']))
         ev.message = tmsg["message"]
     b_io,shape,error_msg,size = await until.get_pic_d(ev.message)  #图片获取过程
     if len(error_msg):
-        until.try_delete_msg(bot, ev, to_del['message_id'])
+        await until.try_delete_msg(bot, ev, to_del['message_id'])
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
         return
 
-    tag_dict,error_msg,tags_guolv=await until.process_tags(gid,uid,tags) #tags处理过程
+    tag_dict,error_msg,tags_guolv=await until.process_tags(gid,uid,tags,sfw=sfw_flag) #tags处理过程
     if len(error_msg):
-        until.try_delete_msg(bot, ev, to_del['message_id'])
+        await until.try_delete_msg(bot, ev, to_del['message_id'])
         await bot.send(ev, f"已报错：{error_msg}", at_sender=True)
         return
-
     if len(tags_guolv):
         await bot.send(ev, f"已过滤：{tags_guolv}", at_sender=True)
+
     result_msg,error_msg = await until.get_imgdata_sd(tag_dict,way=1,shape=shape,b_io=b_io,size=size) #绘图过程
     if len(error_msg):
-        until.try_delete_msg(bot, ev, to_del['message_id'])
+        await until.try_delete_msg(bot, ev, to_del['message_id'])
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
         return
 
-    until.try_delete_msg(bot, ev, to_del['message_id'])
+    #回复形式发送
+    if until.config['use_reply']:
+        result_msg = f"[CQ:reply,id={ev.message_id}][CQ:at,qq={uid}]{result_msg}"
+    await until.try_delete_msg(bot, ev, to_del['message_id'])
     await bot.send(ev, result_msg, at_sender=True)
 
 
@@ -117,6 +133,9 @@ async def get_pic_msg(bot, ev):
         tmsg = await bot.get_msg(message_id=int(ev.message[0].data['id']))
         ev.message = tmsg["message"]
     msg = await until.get_pic_msg_temp(ev.message)
+    #回复形式发送
+    if until.config['use_reply']:
+        msg = f"[CQ:reply,id={ev.message_id}][CQ:at,qq={ev.user_id}]{msg}"
     await bot.send(ev, msg, at_sender=True)
 
 
@@ -130,6 +149,9 @@ async def get_pic_descrip(bot, ev):
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
         return
     msg = await until.get_pic_descrip_(b_io)
+    #回复形式发送
+    if until.config['use_reply']:
+        msg = f"[CQ:reply,id={ev.message_id}][CQ:at,qq={ev.user_id}]{msg}"
     await bot.send(ev, msg, at_sender=True)
 
 
@@ -143,9 +165,10 @@ async def get_pic_strong(bot,ev):
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
         return
     msg = await until.get_pic_strong_(b_io)
+    #回复形式发送
+    if until.config['use_reply']:
+        msg = f"[CQ:reply,id={ev.message_id}][CQ:at,qq={ev.user_id}]{msg}"
     await bot.send(ev, msg, at_sender=True)
-
-
 
 
 @sv.on_suffix('XP排行')
@@ -166,10 +189,13 @@ async def get_xp_pic(bot, ev):
     uid = ev.user_id
     msg = ev.message.extract_plain_text()
     tags,error_msg = await until.get_xp_pic_(msg,gid,uid)
+    sfw_flag = True
+    if until.check_nsfw_conf(gid):
+        sfw_flag = False
     if len(error_msg):
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
         return
-    tag_dict,error_msg,tags_guolv=await until.process_tags(gid,uid,tags,add_db=0,arrange_tags=0) #tags处理过程
+    tag_dict,error_msg,tags_guolv=await until.process_tags(gid,uid,tags,add_db=0,arrange_tags=0,sfw=sfw_flag) #tags处理过程
     if len(error_msg):
         return
         await bot.send(ev, f"已报错：{error_msg}", at_sender=True)
@@ -223,6 +249,9 @@ async def check_pic(bot, ev):
 async def quick_img(bot, ev):
     gid = ev.group_id
     uid = ev.user_id
+    sfw_flag = True
+    if until.check_nsfw_conf(gid):
+        sfw_flag = False
     match = ev['match']
     id = match.group(1)
     tags = match.group(2)
@@ -230,7 +259,7 @@ async def quick_img(bot, ev):
     (a,b) = msg
     msg = re.sub("&seed=[0-9]\d*", "", b, count=0, flags=0)
     tags +=f",{msg}"
-    tag_dict,error_msg,tags_guolv=await until.process_tags(gid,uid,tags) #tags处理过程
+    tag_dict,error_msg,tags_guolv=await until.process_tags(gid,uid,tags,sfw=sfw_flag) #tags处理过程
     if len(error_msg):
         await bot.send(ev, f"已报错：{error_msg}", at_sender=True)
         return
@@ -283,20 +312,6 @@ async def model_change(bot, ev):
         await bot.finish(ev, '模型切换成功', at_sender=True)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @sv.on_prefix("元素法典")
 async def magic_book(bot, ev):
     msg = ev.message.extract_plain_text().strip()
@@ -337,19 +352,6 @@ async def magic_book_sd(bot, ev):
     if len(error_msg):
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
     await bot.send(ev, result_msg, at_sender=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 @sv.on_keyword("鉴赏图片")

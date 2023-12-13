@@ -4,7 +4,7 @@ import hashlib
 import time
 import re
 from deepl import Translator as DeepLTranslator
-from until import config
+from .util import config
 
 
 async def deepLTranslate(translate_text:str, url = config['deepl_url'], app_key = config['deepl_app_key'], proxy = config['deepl_proxy']) -> str:

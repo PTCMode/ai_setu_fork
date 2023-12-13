@@ -13,26 +13,47 @@ token:
   - ''
 
 ##3. 默认绘图参数
-tags_moren: "miku" #默认的tags
-ntags_moren: "lowres, badanatomy, bad hands, text, error, missing fingers, extradigit, fewerdigits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark,username,blurry" #默认的负面tags
-ntags_safe: "{nsfw}, {nude}, {naked}, lvavaginal, nudity, topless, vulva" #默认的防止漏点的ntags,清空则无效
-r18_moren: 0 #默认是否开启r18,1为开启
-pic_max: 1000000 #默认生成的图片最大像素限制,100W像素用T4显卡大概需要32秒,请根据自己的显卡性能调整
+#默认的tags
+tags_moren: (masterpiece,best quality,high quality:1),<lora:neg4all_bdsqlsz_V3.5:0.5>,illustration,illustration,<lora:add_detail:-0.2>,<lyco:GoodHands-beta2:1>,nice hands,perfect hands,solo,1girl
+#默认的负面tags
+ntags_moren: (Worst Quality,Low Quality:1.4),ugly,morbid,mutilated,lowres,bad anatomy,text,error,extra digit,fewer digits,cropped,worst quality,signature,watermark,username,logo,missing arms,missing legs,longbody,extra legs,(extra fingers,deformed hands,polydactyl:1.5)
+#默认的防止漏点的tags, 清空则无效
+tags_sfw: "sfw"
+ntags_sfw: "(nsfw),nude,naked,lvavaginal,nudity,topless,vulva,pussy,nipples"
+#默认的R18的tags, 清空则无效
+tags_nsfw: "(nsfw),(nude:0.6),(pussy:0.8),(nipple:0.8)"
+ntags_nsfw: "censored"
+#默认是否开启r18,1为开启(SD-WebUI不使用此配置)
+r18_moren: 0
+#默认生成的图片最大像素限制,100W像素用T4显卡大概需要32秒,请根据自己的显卡性能调整
+pic_max: 1000000
+#给特定的群开启R18功能, 对于未开启的群默认套用sfw标签, 对于开启的群可以使用R18命令
+r18_group_enable:
+  - 114514
 
 ###3.1. 文字生成图片细节参数
-txt2img_steps_moren: 16
+txt2img_steps_moren: 20
 txt2img_steps_max: 35 #最高步数
 txt2img_sampler_moren: "DPM++ 2S a Karras" #DPM++ 2S a Karras是高阶采样,所以步数较少,即可得到效果
-txt2img_scale_moren: 11
-txt2img_shape_moren: "Portrait"
+txt2img_scale_moren: 7
+txt2img_shape_moren: "portrait"       # "portrait","landscape","square"
 
 ###3.2. 图片生成图片细节参数
 img2img_steps_moren: 30
 img2img_steps_max: 60 #最高步数
 img2img_sampler_moren: "Euler a" #Euler a是低阶采样,所以步数较多
-img2img_scale_moren: 11
-img2img_strength_moren: "0.60" #与原图关联性,越低越关联
+img2img_scale_moren: 7
+img2img_strength_moren: "0.6" #与原图关联性,越低越关联
 resize_mode: 0 #0:Just resize 1:Crop and resize 2:Resize and fill 理论差别较小
+
+###3.3. 高清修复
+enable_hr: False
+hr_second_pass_steps: 0
+hr_scale: 2
+hr_upscaler: "Latent" # 推荐 4xUltrasharp_4xUltrasharpV10, 需要自己下载
+hr_denoising_strength: 0.5
+
+
 ##4. 绘图超时时间，单位秒
 draw_timeout: 180
 ##5. 元素法典相似度,高于该值的魔咒会被覆盖
@@ -43,6 +64,12 @@ max_magic_num: 8 #每次能融合的魔法书个数
 #可选项!
 
 #欢迎下载自炼模型链接：https://pan.baidu.com/s/1hY24_ZH9UfV0mT5-qHcppw?pwd=2333
+
+#只使用SD-WebUI
+only_sd: True
+
+#以回复的形式发送消息
+use_reply: True
 
 #整理tags功能
 arrange_tags: True
@@ -74,8 +101,9 @@ deepl_proxy: "127.0.0.1:7890"
 #过滤功能
 ##1. 是否开启违禁词过滤
 limit_word: True
-##2. 违禁词表,字典树的方式,如 naked 会过滤掉 "nakedasdasda" 里的 "naked" 剩下 "dasdasda"
-wordlist: ['&r18=1', 'nake', 'vagina', 'penis', 'nsfw', 'genital', 'nude', 'nipple', 'vulv', 'no pant', 'clothes remove', 'rectum', '%']
+##2. 违禁词表,字典树的方式,如 naked 会过滤掉 "nakedasdasda" 里的 "naked" 剩下 "dasdasda", 在开启R18的群中不会过滤 r18_wordlist 中的词
+r18_wordlist: ['&r18=1', 'nake', 'vagina', 'penis', 'nsfw', 'genital', 'nude', 'nipple', 'vulv', 'no pant', 'clothes remove', 'rectum']
+wordlist: ['%']
 
 #撤回功能
 ##1. 是否开启撤回功能(Bot会撤回一些可能刷屏的提醒)
