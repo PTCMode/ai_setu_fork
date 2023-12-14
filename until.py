@@ -78,7 +78,7 @@ async def process_tags(gid, uid, tags, add_db = config['add_db'], trans = config
         taglist = re.split('&',tags) #分割
         # taglist[0] = taglist[0].strip().lower() #转小写方便处理
         taglist[0] = taglist[0].strip() # FIXME: 直接转小写会把Lora也一起转换, 造成识别不出Lora的现象
-        id = ["tags=","ntags=","seed=","scale=","shape=","strength=","r18=","steps=","sampler=","restore_faces=","tiling=","bigger=","w=","h="]
+        id = ["tags=","ntags=","def_tags=","seed=","scale=","shape=","strength=","r18=","steps=","sampler=","restore_faces=","tiling=","bigger=","w=","h="]
         #取出tags+ntags+seed+scale+shape,每种只取列表最后一个,并删掉id
         tag_dict = {i: ("" if not [idx for idx in taglist if idx.startswith(i)] \
                         else [idx for idx in taglist if idx.startswith(i)][-1]).replace(i, '', 1)  for i in id }
@@ -126,10 +126,14 @@ async def process_tags(gid, uid, tags, add_db = config['add_db'], trans = config
             error_msg += f"整理失败{e}"
 
     #规范tags
-    if not tag_dict["tags="]:
-        tag_dict["tags="] = config['tags_moren']#默认正面tags
-    if not tag_dict["ntags="]:
-        tag_dict["ntags="] = config['ntags_moren']#默认负面tags
+    if tag_dict["def_tags="] == '1' or config['add_default_prompt']:
+        tag_dict["tags="]  = f'{config["tags_moren"]},{tag_dict["tags="]}'      if tag_dict["tags="]    else config["tags_moren"]
+        tag_dict["ntags="] = f'{config["ntags_moren"]},{tag_dict["ntags="]}'    if tag_dict["ntags="]   else config["ntags_moren"]
+    else:
+        if not tag_dict["tags="]:
+            tag_dict["tags="] = config['tags_moren']#默认正面tags
+        if not tag_dict["ntags="]:
+            tag_dict["ntags="] = config['ntags_moren']#默认负面tags
     if sfw and not nsfw:
         tag_dict["tags="] = (f"{config['tags_sfw']},{tag_dict['tags=']}")
         tag_dict["ntags="] = (f"{config['ntags_sfw']},{tag_dict['ntags=']}")

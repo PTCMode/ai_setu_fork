@@ -14,14 +14,14 @@ token:
 
 ##3. 默认绘图参数
 #默认的tags
-tags_moren: (masterpiece,best quality,high quality:1),<lora:neg4all_bdsqlsz_V3.5:0.5>,illustration,illustration,<lora:add_detail:-0.2>,<lyco:GoodHands-beta2:1>,nice hands,perfect hands,solo,1girl
+tags_moren: (masterpiece,best quality,high quality:1),<lora:neg4all_bdsqlsz_V3.5:0.5>,illustration,illustration,<lora:add_detail:-0.2>,<lora:GoodHands-beta2:1>,nice hands,perfect hands,solo,1girl
 #默认的负面tags
 ntags_moren: (Worst Quality,Low Quality:1.4),ugly,morbid,mutilated,lowres,bad anatomy,text,error,extra digit,fewer digits,cropped,worst quality,signature,watermark,username,logo,missing arms,missing legs,longbody,extra legs,(extra fingers,deformed hands,polydactyl:1.5)
 #默认的防止漏点的tags, 清空则无效
 tags_sfw: "sfw"
 ntags_sfw: "(nsfw),nude,naked,lvavaginal,nudity,topless,vulva,pussy,nipples"
 #默认的R18的tags, 清空则无效
-tags_nsfw: "(nsfw),(nude:0.6),(pussy:0.8),(nipple:0.8)"
+tags_nsfw: "(nsfw),(nude:0.6)"
 ntags_nsfw: "censored"
 #默认是否开启r18,1为开启(SD-WebUI不使用此配置)
 r18_moren: 0
@@ -73,6 +73,9 @@ use_reply: True
 
 #整理tags功能
 arrange_tags: True
+
+#给用户的提示词添加默认的tags(tags_moren, ntags_moren)
+add_default_prompt: True
 
 #数据库相关功能
 ##1. 是否开启数据录入
