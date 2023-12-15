@@ -104,7 +104,7 @@ async def process_tags(gid, uid, tags, add_db = config['add_db'], trans = config
         try:
             tags_guolv_1, tags_guolv_2 = '', ''
             text = tag_dict["tags="].strip()
-            if not nsfw:
+            if sfw and not nsfw:
                 text,tags_guolv_1 = await guolv_r18(text) #过滤, 转小写防止翻译出来大写
             text,tags_guolv_2 = await guolv(text)
             tag_dict["tags="] = text

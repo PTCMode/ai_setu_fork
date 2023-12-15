@@ -63,7 +63,7 @@ async def text2img_sd(bot, ev):
     uid = ev.user_id
     tags = ev.message.extract_plain_text().strip()
     sfw_flag = True
-    if until.check_nsfw_conf(gid):
+    if not until.check_nsfw_conf(gid):
         sfw_flag = False
 
     tag_dict,error_msg,tags_guolv=await until.process_tags(gid,uid,tags,sfw=sfw_flag) #tags处理过程
@@ -94,7 +94,7 @@ async def img2img(bot, ev):
     uid = ev.user_id
     tags = ev.message.extract_plain_text().replace("以图绘图","").strip()
     sfw_flag = True
-    if until.check_nsfw_conf(gid):
+    if not until.check_nsfw_conf(gid):
         sfw_flag = False
 
     if ev.message[0].type == "reply":
@@ -190,15 +190,15 @@ async def get_xp_pic(bot, ev):
     msg = ev.message.extract_plain_text()
     tags,error_msg = await until.get_xp_pic_(msg,gid,uid)
     sfw_flag = True
-    if until.check_nsfw_conf(gid):
+    if not until.check_nsfw_conf(gid):
         sfw_flag = False
     if len(error_msg):
         await bot.finish(ev, f"已报错：{error_msg}", at_sender=True)
         return
     tag_dict,error_msg,tags_guolv=await until.process_tags(gid,uid,tags,add_db=0,arrange_tags=0,sfw=sfw_flag) #tags处理过程
     if len(error_msg):
-        return
         await bot.send(ev, f"已报错：{error_msg}", at_sender=True)
+        return
     if len(tags_guolv):
         await bot.send(ev, f"已过滤：{tags_guolv}", at_sender=True)
     result_msg,error_msg = await until.get_imgdata(tag_dict,way=0)
@@ -250,7 +250,7 @@ async def quick_img(bot, ev):
     gid = ev.group_id
     uid = ev.user_id
     sfw_flag = True
-    if until.check_nsfw_conf(gid):
+    if not until.check_nsfw_conf(gid):
         sfw_flag = False
     match = ev['match']
     id = match.group(1)
