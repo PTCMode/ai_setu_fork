@@ -82,7 +82,7 @@ async def text2img_sd(bot, ev):
 
     #回复形式发送
     if until.config['use_reply']:
-        result_msg = f"[CQ:reply,id={ev.message_id}][CQ:at,qq={uid}]{result_msg}"
+        result_msg = f"[CQ:reply,id={ev.message_id}]{result_msg}" # [CQ:at,qq={uid}]
     await until.try_delete_msg(bot, ev, to_del['message_id'])
     await bot.send(ev, result_msg, at_sender=True)
 
@@ -122,7 +122,7 @@ async def img2img(bot, ev):
 
     #回复形式发送
     if until.config['use_reply']:
-        result_msg = f"[CQ:reply,id={ev.message_id}][CQ:at,qq={uid}]{result_msg}"
+        result_msg = f"[CQ:reply,id={ev.message_id}]{result_msg}"
     await until.try_delete_msg(bot, ev, to_del['message_id'])
     await bot.send(ev, result_msg, at_sender=True)
 

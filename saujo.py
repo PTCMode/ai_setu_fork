@@ -21,13 +21,13 @@ sv = Service(
     )
 
 
-tags_id = ["优秀实践","风格","头发","发色","衣服","鞋子","装饰","胸","类型","身份","表情","二次元","基础动作","手动作","腿动作","复合动作","露出","场景","物品","天气","环境"]
+tags_id = ["类型","身份","头发","发色","衣服","鞋子","装饰","胸","表情","二次元","基础动作","场景","物品","天气","环境"]
 tags = "{{highly detailed}},{{masterpiece}},{ultra-detailed},{illustration},{{1girl}},{{best quality}}" #正面默认tags
 ntags = "lowres,bad anatomy,bad hands,text,error,missing fingers,extra digit,fewer digits,cropped,worst quality,low quality,normal quality,jpeg artifacts,signature,watermark,username,blurry,missing arms,long neck,Humpbacked" #负面默认tags
 
 
 async def be_girl(uid):
-    tags = ""
+    tags = "1girl,solo"
     goal_tag = {}
     uid = int(uid)
     random.seed(uid * int((time.time() + time.localtime().tm_gmtoff) / 3600 / 24))

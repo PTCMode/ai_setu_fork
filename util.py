@@ -57,6 +57,16 @@ for index, word in enumerate(config['r18_wordlist']):
     actree_r18.add_word(word, (index, word))
 actree_r18.make_automaton() #初始化完成，一般来说重启才能重载屏蔽词
 
+actrees_for_match = {}
+if config['add_on_match_prompt']:
+    for item in config['add_on_match_prompt']:
+        actree_tmp = ahocorasick.Automaton()
+        if item[list(item)[0]]['match']:
+            for index, word in enumerate(item[list(item)[0]]['match']):
+                actree_tmp.add_word(word, (index, word))
+            actree_tmp.make_automaton()
+            actrees_for_match[list(item)[0]] = actree_tmp
+
 async def try_delete_msg(bot, ev, message_id):
     try:
         if config['delete_massege']:    await bot.delete_msg(message_id = message_id) #撤回反馈互动,防止刷屏

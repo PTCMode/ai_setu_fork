@@ -4,7 +4,15 @@ import hashlib
 import time
 import re
 from deepl import Translator as DeepLTranslator
+from pygoogletranslation import Translator as GoogleTranslator
 from .util import config
+
+
+async def googleTranslate(translate_text:str) -> str:
+    proxy={"http":"127.0.0.1:7890","https":"127.0.0.1:7890"}
+    translator=GoogleTranslator(proxies=proxy)
+    result = translator.translate(translate_text,src='zh-cn',dest='en')
+    return result.text
 
 
 async def deepLTranslate(translate_text:str, url = config['deepl_url'], app_key = config['deepl_app_key'], proxy = config['deepl_proxy']) -> str:
@@ -109,11 +117,12 @@ async def tag_trans(tags : str):
 
 async def txt_trans(text):
     if config['way2trans'] == 0:
-        text = await youdaoTranslate(text)
+        ret = await youdaoTranslate(text)
     if config['way2trans'] == 1:
-        text = await baiduTranslate(text)
+        ret = await baiduTranslate(text)
     if config['way2trans'] == 2:
-        text = await deepLTranslate(text)
-    else:
-        pass
-    return text
+        ret = await deepLTranslate(text)
+    if config['way2trans'] == 3:
+        ret = await googleTranslate(text)
+    print(f'Translate: "{text}" -> "{ret}"')
+    return ret

@@ -67,6 +67,19 @@ async def guolv_r18(text):#过滤屏蔽词
         tags_guolv = f"{tags_guolv} {str(i[1][1])} "
     return text,tags_guolv
 
+def match_and_add(tags, ntags):
+    text_lc = tags.lower() #转为小写
+    for name in actrees_for_match:
+        for i in actrees_for_match[name].iter(text_lc):
+            if i:
+                for item in config['add_on_match_prompt']:
+                    if list(item)[0] == name:
+                        if item[list(item)[0]]["tags"]:  tags  = f'{tags},{item[list(item)[0]]["tags"]}'
+                        if item[list(item)[0]]["ntags"]: ntags = f'{ntags},{item[list(item)[0]]["ntags"]}'
+                        break
+                break
+    return tags, ntags
+
 async def process_tags(gid, uid, tags, add_db = config['add_db'], trans = config['trans'],\
                        limit_word = config['limit_word'], arrange_tags = config['arrange_tags'],\
                        sfw = True, nsfw = False):
@@ -78,7 +91,7 @@ async def process_tags(gid, uid, tags, add_db = config['add_db'], trans = config
         taglist = re.split('&',tags) #分割
         # taglist[0] = taglist[0].strip().lower() #转小写方便处理
         taglist[0] = taglist[0].strip() # FIXME: 直接转小写会把Lora也一起转换, 造成识别不出Lora的现象
-        id = ["tags=","ntags=","def_tags=","seed=","scale=","shape=","strength=","r18=","steps=","sampler=","restore_faces=","tiling=","bigger=","w=","h="]
+        id = ["tags=","ntags=","def_tags=","seed=","scale=","shape=","strength=","r18=","steps=","sampler=","restore_faces=","tiling=","bigger=","hr_scale=","w=","h="]
         #取出tags+ntags+seed+scale+shape,每种只取列表最后一个,并删掉id
         tag_dict = {i: ("" if not [idx for idx in taglist if idx.startswith(i)] \
                         else [idx for idx in taglist if idx.startswith(i)][-1]).replace(i, '', 1)  for i in id }
@@ -126,7 +139,7 @@ async def process_tags(gid, uid, tags, add_db = config['add_db'], trans = config
             error_msg += f"整理失败{e}"
 
     #规范tags
-    if tag_dict["def_tags="] == '1' or config['add_default_prompt']:
+    if (not tag_dict["def_tags="] and config['add_default_prompt']) or tag_dict["def_tags="] == 'True':
         tag_dict["tags="]  = f'{config["tags_moren"]},{tag_dict["tags="]}'      if tag_dict["tags="]    else config["tags_moren"]
         tag_dict["ntags="] = f'{config["ntags_moren"]},{tag_dict["ntags="]}'    if tag_dict["ntags="]   else config["ntags_moren"]
     else:
@@ -134,21 +147,29 @@ async def process_tags(gid, uid, tags, add_db = config['add_db'], trans = config
             tag_dict["tags="] = config['tags_moren']#默认正面tags
         if not tag_dict["ntags="]:
             tag_dict["ntags="] = config['ntags_moren']#默认负面tags
+
     if sfw and not nsfw:
         tag_dict["tags="] = (f"{config['tags_sfw']},{tag_dict['tags=']}")
         tag_dict["ntags="] = (f"{config['ntags_sfw']},{tag_dict['ntags=']}")
     elif nsfw:
         tag_dict["tags="] = (f"{config['tags_nsfw']},{tag_dict['tags=']}")
         tag_dict["ntags="] = (f"{config['ntags_nsfw']},{tag_dict['ntags=']}")
-    if tag_dict["shape="] and tag_dict["shape="] in ["portrait","landscape","square"]:
+
+    if config['add_on_match']:
+        tags_tmp  = tag_dict["tags="].strip()
+        ntags_tmp = tag_dict["ntags="].strip()
+        tag_dict["tags="], tag_dict["ntags="] = match_and_add(tags_tmp, ntags_tmp)
+
+    if tag_dict["shape="] and tag_dict["shape="] in ["portrait","landscape","square","portrait_pony","landscape_pony","square_pony"]:
         tag_dict["shape="] = tag_dict["shape="].capitalize()
     else:
         tag_dict["shape="] = config['txt2img_shape_moren']#默认形状
+
     if not tag_dict["r18="]:
         tag_dict["r18="] = config['r18_moren']#默认r18参数
-    if not tag_dict["restore_faces="] and tag_dict["restore_faces="] !=  "True":
+    if not tag_dict["restore_faces="] and tag_dict["restore_faces="] != "True":
         tag_dict["restore_faces="] = False#默认restore_faces
-    if not tag_dict["tiling="] and tag_dict["tiling="] !=  "True":
+    if not tag_dict["tiling="] and tag_dict["tiling="] != "True":
         tag_dict["tiling="] = False#默认tiling
     tag_dict["bigger="] = False if not tag_dict["bigger="] else True#默认bigger
     #上传XP数据库
@@ -199,20 +220,20 @@ async def get_pic_msg_temp(msg):
         msg = img.info["parameters"]
         parameters = re.search(r"(.+)\nNegative prompt: +(.+)\nSteps: +(.+), Sampler: +(.+), CFG scale: +(.+), Seed: +(.+), Size: +(.+), Model hash: +(.{8})",msg)
         msg = f'''
-        ▲prompt: {parameters[1]}
-        ▼Negative prompt: {parameters[2]}
-        Steps:{parameters[3]}  Sampler:{parameters[4]}
-        CFG scale:{parameters[5]}  seed:{parameters[6]}
-        Size:{parameters[7]}  Model hash:{parameters[8]}
-        FROM STABLE DIFFUSION WEBUI'''
+▲prompt: {parameters[1]}
+▼Negative prompt: {parameters[2]}
+Steps:{parameters[3]}  Sampler:{parameters[4]}
+CFG scale:{parameters[5]}  seed:{parameters[6]}
+Size:{parameters[7]}  Model hash:{parameters[8]}
+FROM STABLE DIFFUSION WEBUI'''
     except:
         a,b= img.info["Description"],eval(img.info["Comment"])
         msg = f'''
-        ▲prompt: {a}
-        ▼Negative prompt: {b["uc"]}
-        Steps:{b["steps"]}  Sampler:{b["sampler"]}
-        CFG scale:{b["scale"]}  seed:{b["seed"]}
-        FROM NOVELAI'''
+▲prompt: {a}
+▼Negative prompt: {b["uc"]}
+Steps:{b["steps"]}  Sampler:{b["sampler"]}
+CFG scale:{b["scale"]}  seed:{b["seed"]}
+FROM NOVELAI'''
     return msg
 
 #get_pic_descrip
@@ -275,6 +296,12 @@ async def get_imgdata_sd(tagdict:dict,way=1,shape="Portrait",b_io=None,size = No
             width,height = 768,512
         elif shape.lower() == "square":
             width,height = 640,640
+        elif shape.lower() == "portrait_pony":
+            width,height = 832,1216
+        elif shape.lower() == "landscape_pony":
+            width,height = 1216,832
+        elif shape.lower() == "square_pony":
+            width,height = 1040,1040
         if tagdict["bigger="]:
             width,height = width+128,height+128
         if tagdict["w="] and tagdict["w="].isdigit():
@@ -293,18 +320,24 @@ async def get_imgdata_sd(tagdict:dict,way=1,shape="Portrait",b_io=None,size = No
         url = f"{config['sd_api_ip']}/sdapi/v1/txt2img"
         json_data = {
             "prompt": tagdict["tags="],
+            "negative_prompt": tagdict["ntags="],
             "seed": tagdict["seed="],
             "steps": tagdict["steps="],
             "cfg_scale": tagdict["scale="],
             "width": width,
             "height": height,
+            "denoising_strength": 0,
             "restore_faces": tagdict["restore_faces="],
             "tiling": tagdict["tiling="],
-            "negative_prompt": tagdict["ntags="],
             "sampler_index": tagdict["sampler="],
+            "scheduler": "Automatic",
             "enable_hr": config['enable_hr'],
-            "hr_scale": config['hr_scale'],
+            "hr_scale": tagdict["hr_scale="] if tagdict["hr_scale="] else config['hr_scale'],
             "hr_upscaler": config['hr_upscaler'],
+            "hr_scheduler": "Automatic",
+            "hr_additional_modules": [
+                "Use same choices"
+            ],
             "hr_second_pass_steps": config['hr_second_pass_steps'],
             "denoising_strength": config['hr_denoising_strength']
         }
@@ -321,7 +354,7 @@ async def get_imgdata_sd(tagdict:dict,way=1,shape="Portrait",b_io=None,size = No
         if not tagdict["steps="] or not tagdict["steps="].isdigit():
             tagdict["steps="] = config["img2img_steps_moren"] #默认steps
         else:
-            tagdict["steps="] = config["img2img_steps_moren"]  if int(tagdict["steps="])>config["img2img_steps_max"]  else tagdict["steps="]#超过最大步数
+            tagdict["steps="] = config["img2img_steps_moren"] if int(tagdict["steps="]) > config["img2img_steps_max"] else tagdict["steps="]#超过最大步数
         if not tagdict["sampler="]:
             tagdict["sampler="] = config["img2img_sampler_moren"]#默认sampler
         if not tagdict["scale="]:
@@ -331,18 +364,24 @@ async def get_imgdata_sd(tagdict:dict,way=1,shape="Portrait",b_io=None,size = No
             "resize_mode": config["resize_mode"],
             "denoising_strength": tagdict["strength="],
             "prompt": tagdict["tags="],
+            "negative_prompt": tagdict["ntags="],
             "seed": tagdict["seed="],
             "steps": tagdict["steps="],
             "cfg_scale": tagdict["scale="],
             "width": width,
             "height": height,
+            "denoising_strength": 0,
             "restore_faces": tagdict["restore_faces="],
             "tiling": tagdict["tiling="],
-            "negative_prompt": tagdict["ntags="],
             "sampler_index": tagdict["sampler="],
+            "scheduler": "Automatic",
             "enable_hr": config['enable_hr'],
-            "hr_scale": config['hr_scale'],
+            "hr_scale": tagdict["hr_scale="] if tagdict["hr_scale="] else config['hr_scale'],
             "hr_upscaler": config['hr_upscaler'],
+            "hr_scheduler": "Automatic",
+            "hr_additional_modules": [
+                "Use same choices"
+            ],
             "hr_second_pass_steps": config['hr_second_pass_steps'],
             "denoising_strength": config['hr_denoising_strength']
         }
@@ -452,16 +491,22 @@ async def get_xp_pic_(msg,gid,uid):
         error_msg = f'暂无{msg}的XP信息'
     return result_msg,error_msg
 
+# FIXME: 获取图像功能更新QQ后不可用
 async def get_pic_d(msg):
     error_msg = ""  # 报错信息
     try:
         image_url = re.search(r"\[CQ:image,file=(.*)url=(.*?)[,\];]", str(msg))
         url = image_url.group(2)
-        url = re.sub('https:', 'http:', url)
+        print(url)
+        # url = re.sub('https:', 'http:', url)
     except Exception as e:
         error_msg = "你的图片呢？"
         return None,None,error_msg,None
     try:
+        b_io = BytesIO()
+        shape = ''
+        size = None
+
         img_data = await aiorequests.get(url)
         image = Image.open(BytesIO(await img_data.content))
         a,b = image.size
@@ -471,7 +516,6 @@ async def get_pic_d(msg):
         s1 =["Portrait","Landscape","Square"]
         shape=s1[s.index(nsmallest(1, s, key=lambda x: abs(x-c))[0])]#判断形状
         image = image.convert("RGB")
-        b_io = BytesIO()
         image.save(b_io, format="JPEG")
 
     except Exception as e:
